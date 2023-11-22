@@ -1,1 +1,117 @@
+import sqlite3
+import re
+from datetime import datetime
 
+def hozzaadas(username, email):
+    cursor.execute("INSERT INTO users (username, email) VALUES (?, ?)", (username, email))
+    conn.commit()
+    print(f"{username} felhasználó hozzáadva.")
+
+    # Adatok hozzáadása a .txt fájlhoz
+    with open("felhasznalok.txt", "a") as f:
+        f.write(f"{username}, {email}\n")
+
+    # Log információ hozzáadása a log fájlhoz
+    with open("log.txt", "a") as log_file:
+        log_file.write(f"{datetime.now()} - {username} felhasználó hozzáadva\n")
+
+def modositas(username, new_username, email):
+    cursor.execute("UPDATE users SET username = ?, email = ? WHERE username = ?", (new_username, email, username))
+    conn.commit()
+    print(f"{username} felhasználó módosítva.")
+
+    # Log információ hozzáadása a log fájlhoz
+    with open("log.txt", "a") as log_file:
+        log_file.write(f"{datetime.now()} - {username} felhasználó módosítva\n")
+
+def torles(username):
+    # Felhasználó adatainak lekérése törlés előtt
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    deleted_user = cursor.fetchone()
+
+    if deleted_user:
+        cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+        conn.commit()
+        print(f"{username} felhasználó törölve.")
+
+        # Felhasználó törlése a .txt fájlból
+        with open("felhasznalok.txt", "r") as f:
+            lines = f.readlines()
+
+        with open("felhasznalok.txt", "w") as f:
+            for line in lines:
+                if not line.startswith(f"{username},"):
+                    f.write(line)
+
+        # Log információ hozzáadása a log fájlhoz
+        with open("log.txt", "a") as log_file:
+            log_file.write(f"{datetime.now()} - {username} felhasználó törölve\n")
+    else:
+        print("Nincs ilyen felhasználó.")
+
+def listazas():
+    cursor.execute("SELECT * FROM users")
+    users = cursor.fetchall()
+    print("Felhasználók:")
+    for user in users:
+        print(user)
+
+def ellenoriz_email_formatum(email):
+    # Az email címnek tartalmaznia kell legalább egy "@" karaktert és legalább egy "." karaktert az utána következő három karakterrel.
+    if email.count('@') == 1 and email.count('.') >= 1 and len(email.split('.')[-1]) >= 2:
+        return True
+    else:
+        return False
+
+# Adatbázis kapcsolat létrehozása
+conn = sqlite3.connect("felhasznalok.db")
+cursor = conn.cursor()
+
+while True:
+    print("\nVálassz műveletet:")
+    print("1. Felhasználó hozzáadása")
+    print("2. Felhasználó módosítása")
+    print("3. Felhasználó törlése")
+    print("4. Felhasználók listázása")
+    print("5. Kilépés")
+
+    valasztas = input("Választás (1-5): ")
+
+    if valasztas == "1":
+        username = input("Felhasználónév: ")
+
+        while True:
+            email = input("E-mail cím: ")
+            if ellenoriz_email_formatum(email):
+                break
+            else:
+                print("Hibás e-mail formátum. Kérlek, adj meg egy érvényes e-mail címet.")
+
+        hozzaadas(username, email)
+
+    elif valasztas == "2":
+        username = input("Módosítandó felhasználó neve: ")
+        new_username = input("Új felhasználónév: ")
+
+        while True:
+            email = input("Új e-mail cím: ")
+            if ellenoriz_email_formatum(email):
+                break
+            else:
+                print("Hibás e-mail formátum. Kérlek, adj meg egy érvényes e-mail címet.")
+
+        modositas(username, new_username, email)
+
+    elif valasztas == "3":
+        username = input("Törölni kívánt felhasználó neve: ")
+        torles(username)
+
+    elif valasztas == "4":
+        listazas()
+
+    elif valasztas == "5":
+        print("Kilépés...")
+        break
+
+    else:
+        print("Érvénytelen választás. Kérlek, válassz újra.")
